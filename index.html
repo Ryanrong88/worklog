@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>工作日志</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f0f2f5;
+      color: #333;
+      min-height: 100vh;
+    }
+    .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .card {
+      background: white; border-radius: 12px;
+      padding: 20px; margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    h1 { font-size: 1.4rem; margin-bottom: 4px; }
+    h2 { font-size: 1.1rem; margin-bottom: 12px; color: #555; }
+    .row { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+    input, select, textarea {
+      width: 100%; padding: 10px 12px; font-size: 15px;
+      border: 1px solid #d9d9d9; border-radius: 8px;
+      font-family: inherit; outline: none;
+    }
+    input:focus, select:focus, textarea:focus { border-color: #3b82f6; }
+    textarea { resize: vertical; min-height: 60px; }
+    label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
+    button {
+      padding: 10px 18px; font-size: 15px; border: none;
+      border-radius: 8px; cursor: pointer; font-family: inherit;
+      background: #3b82f6; color: white; transition: opacity 0.2s;
+    }
+    button:hover { opacity: 0.9; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.gray { background: #e5e7eb; color: #333; }
+    button.red { background: #ef4444; }
+    button.green { background: #10b981; }
+    .header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 16px;
+    }
+    .header-info { font-size: 14px; color: #666; }
+    .item {
+      border-left: 4px solid #3b82f6;
+      background: #fafafa; padding: 12px 16px;
+      border-radius: 8px; margin-bottom: 10px;
+    }
+    .item.weekly { border-left-color: #f59e0b; }
+    .item-head {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 8px;
+      font-size: 13px; color: #666;
+    }
+    .item-head .tag {
+      background: #3b82f6; color: white;
+      padding: 2px 8px; border-radius: 4px; font-size: 12px;
+    }
+    .item.weekly .tag { background: #f59e0b; }
+    .item p { font-size: 14px; margin: 4px 0; line-height: 1.5; }
+    .item p b { color: #333; }
+    .item .actions { text-align: right; margin-top: 8px; }
+    .item .actions button { padding: 4px 10px; font-size: 13px; }
+    .empty { text-align: center; color: #999; padding: 40px 0; }
+    .msg { padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; display: none; }
+    .msg.error { background: #fee2e2; color: #991b1b; display: block; }
+    .msg.success { background: #d1fae5; color: #065f46; display: block; }
+    .hidden { display: none !important; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tabs button {
+      flex: 1; background: white; color: #666;
+      border: 1px solid #e5e7eb;
+    }
+    .tabs button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- ========== 登录页 ========== -->
+    <div id="loginPage" class="card">
+      <h1>📝 工作日志</h1>
+      <p style="color:#666; font-size:14px; margin-bottom:20px;">登录后记录你的每日/每周工作</p>
+
+      <div id="loginMsg" class="msg"></div>
+
+      <div style="margin-bottom:12px;">
+        <label>邮箱</label>
+        <input id="email" type="email" placeholder="you@example.com" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label>密码</label>
+        <input id="password" type="password" placeholder="至少 6 位" />
+      </div>
+      <div class="row">
+        <button id="loginBtn" onclick="doLogin()" style="flex:1;">登录</button>
+        <button id="signupBtn" onclick="doSignup()" style="flex:1;" class="gray">注册</button>
+      </div>
+      <p style="font-size:12px; color:#999; margin-top:12px; text-align:center;">
+        第一次使用请先点"注册"，用邮箱创建账号
+      </p>
+    </div>
+
+    <!-- ========== 主页面 ========== -->
+    <div id="mainPage" class="hidden">
+      <div class="header">
+        <div>
+          <h1>📝 工作日志</h1>
+          <div class="header-info" id="userInfo"></div>
+        </div>
+        <button class="gray" onclick="doLogout()">退出</button>
+      </div>
+
+      <div class="tabs">
+        <button id="tabMine" class="active" onclick="switchTab('mine')">我的记录</button>
+        <button id="tabAll" class="hidden" onclick="switchTab('all')">所有人</button>
+      </div>
+
+      <!-- 写记录 -->
+      <div class="card" id="writeCard">
+        <h2>✏️ 写一条记录</h2>
+        <div class="row">
+          <div style="flex:1;">
+            <label>类型</label>
+            <select id="type">
+              <option value="daily">日报（每天）</option>
+              <option value="weekly">周报（每周）</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>日期</label>
+            <input id="date" type="date" />
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>✅ 完成了什么</label>
+          <textarea id="done" placeholder="今天/这周完成了什么..."></textarea>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>⚠️ 遇到的问题</label>
+          <textarea id="problem" placeholder="遇到了什么困难..."></textarea>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label>📌 日常事件 / 其他</label>
+          <textarea id="note" placeholder="其他想记录的..."></textarea>
+        </div>
+        <button id="saveBtn" onclick="saveLog()" style="width:100%;">保存</button>
+        <div id="saveMsg" class="msg" style="margin-top:12px;"></div>
+      </div>
+
+      <!-- 记录列表 -->
+      <div class="card">
+        <h2 id="listTitle">📋 我的记录</h2>
+        <div id="logList"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>                    
