@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>工作日志</title>
-    <link rel="manifest" href="manifest.json" />
+  <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#3b82f6" />
   <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM4IiBmaWxsPSIjM2I4MmY2Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSI5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPuKckzwvdGV4dD48L3N2Zz4=" />
   <style>
@@ -15,7 +15,7 @@
       color: #333;
       min-height: 100vh;
     }
-    .container { max-width: 720px; margin: 0 auto; padding: 16px; }
+    .container { max-width: 800px; margin: 0 auto; padding: 16px; }
     .card {
       background: white; border-radius: 12px;
       padding: 20px; margin-bottom: 16px;
@@ -42,9 +42,10 @@
     button.gray { background: #e5e7eb; color: #333; }
     button.red { background: #ef4444; }
     button.green { background: #10b981; }
+    button.small { padding: 4px 10px; font-size: 13px; }
     .header {
       display: flex; justify-content: space-between;
-      align-items: center; margin-bottom: 16px;
+      align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
     }
     .header-info { font-size: 14px; color: #666; }
     .item {
@@ -56,28 +57,43 @@
     .item-head {
       display: flex; justify-content: space-between;
       align-items: center; margin-bottom: 8px;
-      font-size: 13px; color: #666;
+      font-size: 13px; color: #666; flex-wrap: wrap; gap: 6px;
     }
     .item-head .tag {
       background: #3b82f6; color: white;
       padding: 2px 8px; border-radius: 4px; font-size: 12px;
     }
     .item.weekly .tag { background: #f59e0b; }
+    .item-head .proj {
+      background: #dbeafe; color: #1e40af;
+      padding: 2px 8px; border-radius: 4px; font-size: 12px;
+    }
     .item p { font-size: 14px; margin: 4px 0; line-height: 1.5; }
     .item p b { color: #333; }
     .item .actions { text-align: right; margin-top: 8px; }
-    .item .actions button { padding: 4px 10px; font-size: 13px; }
     .empty { text-align: center; color: #999; padding: 40px 0; }
     .msg { padding: 10px; border-radius: 8px; font-size: 14px; margin-bottom: 12px; display: none; }
     .msg.error { background: #fee2e2; color: #991b1b; display: block; }
     .msg.success { background: #d1fae5; color: #065f46; display: block; }
     .hidden { display: none !important; }
-    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
     .tabs button {
-      flex: 1; background: white; color: #666;
+      flex: 1; min-width: 100px; background: white; color: #666;
       border: 1px solid #e5e7eb;
     }
     .tabs button.active { background: #3b82f6; color: white; border-color: #3b82f6; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table th, table td {
+      border: 1px solid #e5e7eb; padding: 8px; text-align: left;
+      vertical-align: top; word-break: break-word;
+    }
+    table th { background: #f3f4f6; font-weight: 600; }
+    .proj-item {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 8px 12px;
+      background: #f9fafb; border-radius: 6px; margin-bottom: 6px;
+    }
+    .proj-item span { font-size: 14px; }
   </style>
 </head>
 <body>
@@ -102,9 +118,6 @@
         <button id="loginBtn" onclick="doLogin()" style="flex:1;">登录</button>
         <button id="signupBtn" onclick="doSignup()" style="flex:1;" class="gray">注册</button>
       </div>
-      <p style="font-size:12px; color:#999; margin-top:12px; text-align:center;">
-        第一次使用请先点"注册"，用邮箱创建账号
-      </p>
     </div>
 
     <!-- ========== 主页面 ========== -->
@@ -120,22 +133,33 @@
       <div class="tabs">
         <button id="tabMine" class="active" onclick="switchTab('mine')">我的记录</button>
         <button id="tabAll" class="hidden" onclick="switchTab('all')">所有人</button>
+        <button id="tabProjects" onclick="switchTab('projects')">项目管理</button>
+        <button id="tabSummary" onclick="switchTab('summary')">汇总导出</button>
       </div>
 
       <!-- 写记录 -->
       <div class="card" id="writeCard">
         <h2>✏️ 写一条记录</h2>
         <div class="row">
-          <div style="flex:1;">
+          <div style="flex:1; min-width:120px;">
             <label>类型</label>
             <select id="type">
               <option value="daily">日报（每天）</option>
               <option value="weekly">周报（每周）</option>
             </select>
           </div>
-          <div style="flex:1;">
+          <div style="flex:1; min-width:120px;">
             <label>日期</label>
             <input id="date" type="date" />
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>项目分类</label>
+          <div style="display:flex; gap:8px;">
+            <select id="project" style="flex:1;">
+              <option value="">（未分类）</option>
+            </select>
+            <button class="gray" onclick="showProjectModal()" style="white-space:nowrap;">+ 新建</button>
           </div>
         </div>
         <div style="margin-bottom:12px;">
@@ -159,11 +183,78 @@
         <h2 id="listTitle">📋 我的记录</h2>
         <div id="logList"></div>
       </div>
+
+      <!-- 项目管理 -->
+      <div class="card hidden" id="projectCard">
+        <h2>📁 项目管理</h2>
+        <p style="color:#666; font-size:13px; margin-bottom:12px;">这些分类只有你自己能看到和使用</p>
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+          <input id="newProjectName" placeholder="输入新项目名称..." style="flex:1;" />
+          <button onclick="addProject()">添加</button>
+        </div>
+        <div id="projectList"></div>
+      </div>
+
+      <!-- 汇总导出 -->
+      <div class="card hidden" id="summaryCard">
+        <h2>📊 汇总导出</h2>
+        <div class="row">
+          <div style="flex:1; min-width:140px;">
+            <label>用户</label>
+            <select id="sumUser" onchange="onSumUserChange()">
+              <option value="">所有人</option>
+            </select>
+          </div>
+          <div style="flex:1; min-width:140px;">
+            <label>项目</label>
+            <select id="sumProject">
+              <option value="">全部项目</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div style="flex:1; min-width:120px;">
+            <label>类型</label>
+            <select id="sumType">
+              <option value="">全部</option>
+              <option value="daily">日报</option>
+              <option value="weekly">周报</option>
+            </select>
+          </div>
+          <div style="flex:1; min-width:120px;">
+            <label>开始日期</label>
+            <input id="sumStart" type="date" />
+          </div>
+          <div style="flex:1; min-width:120px;">
+            <label>结束日期</label>
+            <input id="sumEnd" type="date" />
+          </div>
+        </div>
+        <div class="row" style="margin-top:12px;">
+          <button onclick="generateSummary()" style="flex:1;">生成汇总</button>
+          <button class="green" onclick="exportExcel()" style="flex:1;">导出 Excel</button>
+        </div>
+        <div id="sumMsg" class="msg" style="margin-top:12px;"></div>
+        <div id="sumResult" style="margin-top:16px; overflow-x:auto;"></div>
+      </div>
     </div>
 
   </div>
 
+  <!-- 新建项目弹窗 -->
+  <div id="projectModal" class="hidden" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="max-width:400px; width:90%;">
+      <h2>新建项目</h2>
+      <input id="modalProjectName" placeholder="项目名称" style="margin-bottom:12px;" />
+      <div style="display:flex; gap:8px;">
+        <button class="gray" onclick="hideProjectModal()" style="flex:1;">取消</button>
+        <button onclick="quickAddProject()" style="flex:1;">创建</button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
-</html>                    
+</html>
