@@ -1,31 +1,30 @@
 // ====== 这里换成你自己的 Supabase 信息 ======
-const SUPABASE_URL = 'https://cjbpatgijzmkrakaujhz.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_NObsvMrfusGQnq8wSbX-zg_4GfJXZRH';
+var SUPABASE_URL = '你的URL';
+var SUPABASE_KEY = '你的KEY';
 // ===========================================
 
-const { createClient } = supabase;
-const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let currentUser = null;
-let isAdmin = false;
-let currentTab = 'mine';
+var currentUser = null;
+var isAdmin = false;
+var currentTab = 'mine';
 
 // ====== 初始化 ======
-async function init() {
-  // 设置今天的日期
+function init() {
   document.getElementById('date').value = new Date().toISOString().slice(0, 10);
 
-  // 检查是否已登录
-  const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    currentUser = session.user;
-    await checkAdmin();
-    showMain();
-    loadLogs();
-  }
+  db.auth.getSession().then(function(res) {
+    var session = res.data.session;
+    if (session) {
+      currentUser = session.user;
+      checkAdmin().then(function() {
+        showMain();
+        loadLogs();
+      });
+    }
+  });
 
-  // 监听登录状态变化
-  db.auth.onAuthStateChange((event, session) => {
+  db.auth.onAuthStateChange(function(event, session) {
     if (event === 'SIGNED_OUT') {
       currentUser = null;
       showLogin();
@@ -34,55 +33,64 @@ async function init() {
 }
 
 // ====== 登录 ======
-async function doLogin() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+function doLogin() {
+  var email = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value;
   if (!email || !password) return showMsg('loginMsg', '请填写邮箱和密码', 'error');
 
-  const btn = document.getElementById('loginBtn');
+  var btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = '登录中...';
 
-  const { data, error } = await db.auth.signInWithPassword({ email, password });
+  db.auth.signInWithPassword({ email: email, password: password }).then(function(res) {
+    btn.disabled = false; btn.textContent = '登录';
 
-  btn.disabled = false; btn.textContent = '登录';
+    if (res.error) return showMsg('loginMsg', '登录失败：' + res.error.message, 'error');
 
-  if (error) return showMsg('loginMsg', '登录失败：' + error.message, 'error');
-
-  currentUser = data.user;
-  await checkAdmin();
-  showMain();
-  loadLogs();
+    currentUser = res.data.user;
+    return checkAdmin().then(function() {
+      showMain();
+      loadLogs();
+    });
+  }).catch(function(e) {
+    btn.disabled = false; btn.textContent = '登录';
+    showMsg('loginMsg', '登录出错：' + e.message, 'error');
+  });
 }
 
 // ====== 注册 ======
-async function doSignup() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+function doSignup() {
+  var email = document.getElementById('email').value.trim();
+  var password = document.getElementById('password').value;
   if (!email || !password) return showMsg('loginMsg', '请填写邮箱和密码', 'error');
   if (password.length < 6) return showMsg('loginMsg', '密码至少 6 位', 'error');
 
-  const btn = document.getElementById('signupBtn');
+  var btn = document.getElementById('signupBtn');
   btn.disabled = true; btn.textContent = '注册中...';
 
-  const { error } = await db.auth.signUp({ email, password });
+  db.auth.signUp({ email: email, password: password }).then(function(res) {
+    btn.disabled = false; btn.textContent = '注册';
 
-  btn.disabled = false; btn.textContent = '注册';
+    if (res.error) return showMsg('loginMsg', '注册失败：' + res.error.message, 'error');
 
-  if (error) return showMsg('loginMsg', '注册失败：' + error.message, 'error');
-
-  showMsg('loginMsg', '注册成功！现在可以登录了。如果提示验证邮箱，请去邮箱点确认链接。', 'success');
+    showMsg('loginMsg', '注册成功！现在可以登录了。', 'success');
+  }).catch(function(e) {
+    btn.disabled = false; btn.textContent = '注册';
+    showMsg('loginMsg', '注册出错：' + e.message, 'error');
+  });
 }
 
 // ====== 退出 ======
-async function doLogout() {
-  await db.auth.signOut();
+function doLogout() {
+  db.auth.signOut();
 }
 
 // ====== 检查是否管理员 ======
-async function checkAdmin() {
-  const { data } = await db.from('admins').select('user_id').eq('user_id', currentUser.id);
-  isAdmin = data && data.length > 0;
-  document.getElementById('tabAll').classList.toggle('hidden', !isAdmin);
+function checkAdmin() {
+  if (!currentUser) return Promise.resolve();
+  return db.from('admins').select('user_id').eq('user_id', currentUser.id).then(function(res) {
+    isAdmin = res.data && res.data.length > 0;
+    document.getElementById('tabAll').classList.toggle('hidden', !isAdmin);
+  });
 }
 
 // ====== 界面切换 ======
@@ -106,94 +114,99 @@ function switchTab(tab) {
 }
 
 // ====== 保存记录 ======
-async function saveLog() {
-  const type = document.getElementById('type').value;
-  const date = document.getElementById('date').value;
-  const done = document.getElementById('done').value.trim();
-  const problem = document.getElementById('problem').value.trim();
-  const note = document.getElementById('note').value.trim();
+function saveLog() {
+  var type = document.getElementById('type').value;
+  var date = document.getElementById('date').value;
+  var done = document.getElementById('done').value.trim();
+  var problem = document.getElementById('problem').value.trim();
+  var note = document.getElementById('note').value.trim();
 
   if (!date) return showMsg('saveMsg', '请选择日期', 'error');
   if (!done && !problem && !note) return showMsg('saveMsg', '至少填一项内容', 'error');
 
-  const btn = document.getElementById('saveBtn');
+  var btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '保存中...';
 
-  const { error } = await db.from('logs').insert({
+  db.from('logs').insert({
     user_id: currentUser.id,
-    type, date, done, problem, note
+    type: type, date: date, done: done, problem: problem, note: note
+  }).then(function(res) {
+    btn.disabled = false; btn.textContent = '保存';
+
+    if (res.error) return showMsg('saveMsg', '保存失败：' + res.error.message, 'error');
+
+    showMsg('saveMsg', '✅ 保存成功！', 'success');
+    document.getElementById('done').value = '';
+    document.getElementById('problem').value = '';
+    document.getElementById('note').value = '';
+    loadLogs();
   });
-
-  btn.disabled = false; btn.textContent = '保存';
-
-  if (error) return showMsg('saveMsg', '保存失败：' + error.message, 'error');
-
-  showMsg('saveMsg', '✅ 保存成功！', 'success');
-  document.getElementById('done').value = '';
-  document.getElementById('problem').value = '';
-  document.getElementById('note').value = '';
-  loadLogs();
 }
 
 // ====== 加载记录 ======
-async function loadLogs() {
-  const list = document.getElementById('logList');
+function loadLogs() {
+  var list = document.getElementById('logList');
   list.innerHTML = '<div class="empty">加载中...</div>';
 
-  let query = db.from('logs').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
+  var query = db.from('logs').select('*').order('date', { ascending: false }).order('created_at', { ascending: false });
 
   if (currentTab === 'mine') {
     query = query.eq('user_id', currentUser.id);
   }
 
-  const { data, error } = await query;
+  query.then(function(res) {
+    if (res.error) {
+      list.innerHTML = '<div class="empty">加载失败：' + res.error.message + '</div>';
+      return;
+    }
 
-  if (error) {
-    list.innerHTML = '<div class="empty">加载失败：' + error.message + '</div>';
-    return;
-  }
+    var data = res.data;
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="empty">还没有记录，去上面写一条吧 👆</div>';
+      return;
+    }
 
-  if (!data || data.length === 0) {
-    list.innerHTML = '<div class="empty">还没有记录，去上面写一条吧 👆</div>';
-    return;
-  }
-
-  list.innerHTML = data.map(log => `
-    <div class="item ${log.type}">
-      <div class="item-head">
-        <div>
-          <span class="tag">${log.type === 'daily' ? '日报' : '周报'}</span>
-          <span style="margin-left:8px;">${log.date}</span>
-          ${currentTab === 'all' ? `<span style="margin-left:8px; color:#999;">· ${log.user_id.slice(0,8)}</span>` : ''}
-        </div>
-      </div>
-      ${log.done ? `<p><b>✅ 完成：</b>${escapeHtml(log.done)}</p>` : ''}
-      ${log.problem ? `<p><b>⚠️ 问题：</b>${escapeHtml(log.problem)}</p>` : ''}
-      ${log.note ? `<p><b>📌 其他：</b>${escapeHtml(log.note)}</p>` : ''}
-      <div class="actions">
-        <button class="red" onclick="deleteLog('${log.id}')">删除</button>
-      </div>
-    </div>
-  `).join('');
+    var html = '';
+    for (var i = 0; i < data.length; i++) {
+      var log = data[i];
+      html += '<div class="item ' + log.type + '">';
+      html += '<div class="item-head"><div>';
+      html += '<span class="tag">' + (log.type === 'daily' ? '日报' : '周报') + '</span>';
+      html += '<span style="margin-left:8px;">' + log.date + '</span>';
+      if (currentTab === 'all') {
+        html += '<span style="margin-left:8px; color:#999;">· ' + log.user_id.slice(0, 8) + '</span>';
+      }
+      html += '</div></div>';
+      if (log.done) html += '<p><b>✅ 完成：</b>' + escapeHtml(log.done) + '</p>';
+      if (log.problem) html += '<p><b>⚠️ 问题：</b>' + escapeHtml(log.problem) + '</p>';
+      if (log.note) html += '<p><b>📌 其他：</b>' + escapeHtml(log.note) + '</p>';
+      html += '<div class="actions"><button class="red" onclick="deleteLog(\'' + log.id + '\')">删除</button></div>';
+      html += '</div>';
+    }
+    list.innerHTML = html;
+  });
 }
 
 // ====== 删除记录 ======
-async function deleteLog(id) {
+function deleteLog(id) {
   if (!confirm('确定删除这条记录吗？')) return;
-  const { error } = await db.from('logs').delete().eq('id', id);
-  if (error) return alert('删除失败：' + error.message);
-  loadLogs();
+  db.from('logs').delete().eq('id', id).then(function(res) {
+    if (res.error) return alert('删除失败：' + res.error.message);
+    loadLogs();
+  });
 }
 
 // ====== 小工具 ======
 function showMsg(id, text, type) {
-  const el = document.getElementById(id);
+  var el = document.getElementById(id);
   el.textContent = text;
   el.className = 'msg ' + type;
-  setTimeout(() => { el.className = 'msg'; }, 5000);
+  setTimeout(function() { el.className = 'msg'; }, 5000);
 }
 function escapeHtml(s) {
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  return s.replace(/[&<>"']/g, function(c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
 }
 
 // 启动
