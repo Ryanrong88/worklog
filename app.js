@@ -1,6 +1,6 @@
 // ====== 换成你自己的 Supabase 信息 ======
 var SUPABASE_URL = 'https://cjbpagijzmkraukaujhz.supabase.co';
-var SUPABASE_KEY = '你的KEY换成这串';
+var SUPABASE_KEY = 'sb_publishable_NObsvMrfusGQnq8wSbX-zg_4GfJXZRH';
 // ======================================
 
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
