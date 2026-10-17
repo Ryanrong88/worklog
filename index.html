@@ -7,6 +7,19 @@
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#3b82f6" />
   <link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgcng9IjM4IiBmaWxsPSIjM2I4MmY2Ii8+PHRleHQgeD0iOTYiIHk9IjEyMCIgZm9udC1zaXplPSI5NiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiPuKckzwvdGV4dD48L3N2Zz4=" />
+  
+  <!-- 引入 OneSignal -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(function(OneSignal) {
+      OneSignal.init({
+        appId: "56af74a8-dbf9-489d-9889-572c8d92dd3a",
+        notifyButton: { enable: false }
+      });
+    });
+  </script>
+
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; background: #f0f2f5; color: #333; min-height: 100vh; }
@@ -138,10 +151,13 @@
         <h2>🔔 事件提醒</h2>
         <div class="row">
           <div style="flex:2;"><label>提醒内容</label><input id="remindTitle" placeholder="例如：交周报、开会..." /></div>
+        </div>
+        <div class="row">
           <div style="flex:1;"><label>提醒日期</label><input id="remindDate" type="date" /></div>
+          <div style="flex:1;"><label>具体时间</label><input id="remindTime" type="time" /></div>
           <button onclick="addReminder()" style="margin-top:18px;">添加</button>
         </div>
-        <p style="color:#666; font-size:12px; margin-bottom:12px;">首次使用手机通知，请点击：<button class="small gray" onclick="requestNotificationPermission()">开启通知权限</button></p>
+        <p style="color:#666; font-size:12px; margin-bottom:12px;">提示：请务必允许浏览器通知权限。iOS 用户必须将本网页“添加到主屏幕”才能接收推送。</p>
         <div id="reminderList"></div>
       </div>
     </div>
