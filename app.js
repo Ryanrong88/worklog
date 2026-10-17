@@ -4,44 +4,30 @@ var SUPABASE_KEY = 'sb_publishable_NObsvMrfusGQnq8wSbX-zg_4GfJXZRH';
 // ======================================
 
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-
 var currentUser = null;
 var isAdmin = false;
 var currentTab = 'mine';
 var myProjects = [];
 var summaryData = [];
 
-// 通知定时器
-var notificationTimer = null;
-
 function init() {
   document.getElementById('date').value = new Date().toISOString().slice(0, 10);
   document.getElementById('remindDate').value = new Date().toISOString().slice(0, 10);
-  var today = new Date().toISOString().slice(0, 10);
-  var monthAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0, 10);
-  document.getElementById('sumStart').value = monthAgo;
-  document.getElementById('sumEnd').value = today;
+  document.getElementById('sumStart').value = new Date(Date.now() - 30*24*60*60*1000).toISOString().slice(0, 10);
+  document.getElementById('sumEnd').value = new Date().toISOString().slice(0, 10);
 
   db.auth.getSession().then(function(res) {
-    var session = res.data.session;
-    if (session) {
-      currentUser = session.user;
+    if (res.data.session) {
+      currentUser = res.data.session.user;
       checkAdmin().then(function() {
         showMain();
-        loadProjects().then(function() {
-          loadLogs();
-          checkReminders();
-        });
+        loadProjects().then(loadLogs);
       });
     }
   });
 
   db.auth.onAuthStateChange(function(event) {
-    if (event === 'SIGNED_OUT') {
-      currentUser = null;
-      if(notificationTimer) clearInterval(notificationTimer);
-      showLogin();
-    }
+    if (event === 'SIGNED_OUT') { currentUser = null; showLogin(); }
   });
 }
 
@@ -51,16 +37,21 @@ function doLogin() {
   if (!email || !password) return showMsg('loginMsg', '请填写邮箱和密码', 'error');
   var btn = document.getElementById('loginBtn');
   btn.disabled = true; btn.textContent = '登录中...';
+  
   db.auth.signInWithPassword({ email: email, password: password }).then(function(res) {
     btn.disabled = false; btn.textContent = '登录';
     if (res.error) return showMsg('loginMsg', '登录失败：' + res.error.message, 'error');
     currentUser = res.data.user;
-    return checkAdmin().then(function() {
-      return loadProjects();
-    }).then(function() {
+    
+    // 【关键】绑定 OneSignal 推送ID
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(function(OneSignal) {
+        OneSignal.login(currentUser.id);
+    });
+
+    checkAdmin().then(loadProjects).then(function() {
       showMain();
       loadLogs();
-      checkReminders();
     });
   }).catch(function(e) {
     btn.disabled = false; btn.textContent = '登录';
@@ -72,7 +63,6 @@ function doSignup() {
   var email = document.getElementById('email').value.trim();
   var password = document.getElementById('password').value;
   if (!email || !password) return showMsg('loginMsg', '请填写邮箱和密码', 'error');
-  if (password.length < 6) return showMsg('loginMsg', '密码至少 6 位', 'error');
   var btn = document.getElementById('signupBtn');
   btn.disabled = true; btn.textContent = '注册中...';
   db.auth.signUp({ email: email, password: password }).then(function(res) {
@@ -138,9 +128,7 @@ function loadProjects() {
     sel.innerHTML = '<option value="">（未分类）</option>';
     myProjects.forEach(function(p) {
       var o = document.createElement('option');
-      o.value = p.id;
-      o.textContent = p.name;
-      sel.appendChild(o);
+      o.value = p.id; o.textContent = p.name; sel.appendChild(o);
     });
   });
 }
@@ -167,22 +155,21 @@ function addProject() {
 }
 
 function deleteProject(id, name) {
-  if (!confirm('确定删除项目「' + name + '」吗？\n（原有记录会保留，但显示为"未分类"）')) return;
+  if (!confirm('确定删除项目「' + name + '」吗？')) return;
   db.from('projects').delete().eq('id', id).then(function(res) {
     if (res.error) return alert('删除失败：' + res.error.message);
     loadProjects().then(renderProjectList);
   });
 }
 
-function showProjectModal() { document.getElementById('projectModal').classList.remove('hidden'); document.getElementById('modalProjectName').value = ''; setTimeout(function(){document.getElementById('modalProjectName').focus();}, 100); }
+function showProjectModal() { document.getElementById('projectModal').classList.remove('hidden'); document.getElementById('modalProjectName').value = ''; }
 function hideProjectModal() { document.getElementById('projectModal').classList.add('hidden'); }
 function quickAddProject() {
   var name = document.getElementById('modalProjectName').value.trim();
   if (!name) return alert('请输入项目名称');
   db.from('projects').insert({ user_id: currentUser.id, name: name }).then(function(res) {
     if (res.error) return alert('添加失败：' + res.error.message);
-    hideProjectModal();
-    loadProjects();
+    hideProjectModal(); loadProjects();
   });
 }
 
@@ -193,13 +180,10 @@ function saveLog() {
   var done = document.getElementById('done').value.trim();
   var problem = document.getElementById('problem').value.trim();
   var note = document.getElementById('note').value.trim();
-
   if (!date) return showMsg('saveMsg', '请选择日期', 'error');
   if (!done && !problem && !note) return showMsg('saveMsg', '至少填一项内容', 'error');
-
   var btn = document.getElementById('saveBtn');
   btn.disabled = true; btn.textContent = '保存中...';
-
   db.from('logs').insert({
     user_id: currentUser.id, type: type, date: date,
     project_id: projectId || null, done: done, problem: problem, note: note
@@ -219,12 +203,10 @@ function loadLogs() {
   list.innerHTML = '<div class="empty">加载中...</div>';
   var query = db.from('logs').select('*, projects(name)').order('date', { ascending: false }).order('created_at', { ascending: false });
   if (currentTab === 'mine') query = query.eq('user_id', currentUser.id);
-
   query.then(function(res) {
     if (res.error) { list.innerHTML = '<div class="empty">加载失败：' + res.error.message + '</div>'; return; }
     var data = res.data;
     if (!data || data.length === 0) { list.innerHTML = '<div class="empty">还没有记录，去上面写一条吧 👆</div>'; return; }
-
     var html = '';
     for (var i = 0; i < data.length; i++) {
       var log = data[i];
@@ -252,39 +234,38 @@ function deleteLog(id) {
   });
 }
 
-// ====== 提醒功能 ======
 function addReminder() {
   var title = document.getElementById('remindTitle').value.trim();
   var date = document.getElementById('remindDate').value;
-  if (!title || !date) return alert('请填写提醒内容和日期');
-
-  db.from('reminders').insert({ user_id: currentUser.id, title: title, remind_date: date }).then(function(res) {
+  var time = document.getElementById('remindTime').value;
+  if (!title || !date || !time) return alert('请填写提醒内容、日期和具体时间');
+  db.from('reminders').insert({ user_id: currentUser.id, title: title, remind_date: date, remind_time: time }).then(function(res) {
     if (res.error) return alert('添加失败：' + res.error.message);
     document.getElementById('remindTitle').value = '';
     loadReminders();
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    window.OneSignalDeferred.push(function(OneSignal) {
+        OneSignal.Notifications.requestPermission();
+    });
   });
 }
 
 function loadReminders() {
   var list = document.getElementById('reminderList');
   list.innerHTML = '加载中...';
-
   db.from('reminders').select('*').eq('user_id', currentUser.id).order('remind_date', { ascending: true }).then(function(res) {
     if (res.error) { list.innerHTML = '加载失败：' + res.error.message; return; }
     var data = res.data || [];
     if (data.length === 0) { list.innerHTML = '<div class="empty">还没有提醒，去上面加一个吧 👆</div>'; return; }
-
     var html = '';
     var today = new Date().toISOString().slice(0, 10);
-
     data.forEach(function(r) {
       var isPast = r.remind_date <= today && !r.is_done;
       var color = r.is_done ? '#999' : (isPast ? '#ef4444' : '#3b82f6');
       var status = r.is_done ? '已过期(完成)' : (isPast ? '🔥 已到期' : '待提醒');
-
       html += '<div class="item" style="border-left-color:' + color + '">';
       html += '<div class="item-head"><div style="font-weight:bold; color:' + color + ';">' + escapeHtml(r.title) + '</div>';
-      html += '<div style="font-size:12px; color:#666;">' + r.remind_date + ' (' + status + ')</div></div>';
+      html += '<div style="font-size:12px; color:#666;">' + r.remind_date + ' ' + (r.remind_time ? r.remind_time : '') + ' (' + status + ')</div></div>';
       html += '<div class="actions" style="display:flex; justify-content:space-between;">';
       if (!r.is_done) html += '<button class="green small" onclick="completeReminder(\'' + r.id + '\')">标记完成</button>';
       else html += '<span></span>';
@@ -296,77 +277,21 @@ function loadReminders() {
 }
 
 function completeReminder(id) {
-  db.from('reminders').update({ is_done: true }).eq('id', id).then(function() {
-    loadReminders();
-  });
+  db.from('reminders').update({ is_done: true }).eq('id', id).then(function() { loadReminders(); });
 }
 
 function deleteReminder(id) {
   if (!confirm('确定删除此提醒吗？')) return;
-  db.from('reminders').delete().eq('id', id).then(function() {
-    loadReminders();
-  });
+  db.from('reminders').delete().eq('id', id).then(function() { loadReminders(); });
 }
 
-// ====== 弹窗通知逻辑 ======
-function requestNotificationPermission() {
-  if (!("Notification" in window)) {
-    alert("你的手机或浏览器不支持消息通知功能");
-    return;
-  }
-  Notification.requestPermission().then(function(permission) {
-    if (permission === "granted") {
-      alert("✅ 通知权限已开启！只要保持网页打开，到日期就会弹窗。");
-      new Notification("工作日志", { body: "通知功能已成功开启！" });
-    } else {
-      alert("❌ 你拒绝了通知权限，无法收到弹窗。");
-    }
-  });
-}
-
-function checkReminders() {
-  if (notificationTimer) clearInterval(notificationTimer);
-
-  // 立即查一次
-  doCheck();
-
-  // 每 30 秒检查一次是否有到期的提醒
-  notificationTimer = setInterval(doCheck, 30000);
-}
-
-function doCheck() {
-  if (!currentUser) return;
-  // 每天只通知一次，避免烦人 (用 localStorage 记)
-  var today = new Date().toISOString().slice(0, 10);
-  
-  db.from('reminders').select('*').eq('user_id', currentUser.id).eq('is_done', false).lte('remind_date', today).then(function(res) {
-    if (res.error || !res.data) return;
-    
-    res.data.forEach(function(r) {
-      var notifyKey = 'notified_' + r.id + '_' + today;
-      if (!localStorage.getItem(notifyKey)) {
-        // 如果还没弹过，就弹一次
-        if (Notification.permission === "granted") {
-          new Notification("🔔 事件提醒", { body: r.title });
-        }
-        localStorage.setItem(notifyKey, 'true');
-      }
-    });
-  });
-}
-
-
-// ====== 汇总相关 ======
 function initSummaryPage() {
   var userSel = document.getElementById('sumUser');
   userSel.innerHTML = '<option value="">所有人</option>';
   if (isAdmin) {
     db.from('logs').select('user_id').then(function(res) {
-      var seen = {};
-      var users = [];
-      (res.data || []).forEach(function(r) {
-        if (!seen[r.user_id]) { seen[r.user_id] = true; users.push(r.user_id); }
-      });
+      var seen = {}; var users = [];
+      (res.data || []).forEach(function(r) { if (!seen[r.user_id]) { seen[r.user_id] = true; users.push(r.user_id); } });
       users.forEach(function(uid) {
         var o = document.createElement('option'); o.value = uid; o.textContent = uid.slice(0, 8) + '...'; userSel.appendChild(o);
       });
@@ -383,13 +308,10 @@ function loadAllProjects() {
   projSel.innerHTML = '<option value="">全部项目</option>';
   var query = db.from('projects').select('*');
   if (userId) query = query.eq('user_id', userId);
-
   query.then(function(res) {
     (res.data || []).forEach(function(p) {
       var o = document.createElement('option');
-      o.value = p.id;
-      o.textContent = p.name + (userId ? '' : '（' + p.user_id.slice(0, 6) + '）');
-      projSel.appendChild(o);
+      o.value = p.id; o.textContent = p.name + (userId ? '' : '（' + p.user_id.slice(0, 6) + '）'); projSel.appendChild(o);
     });
   });
 }
@@ -402,16 +324,13 @@ function generateSummary() {
   var type = document.getElementById('sumType').value;
   var start = document.getElementById('sumStart').value;
   var end = document.getElementById('sumEnd').value;
-
   var query = db.from('logs').select('*, projects(name)').order('date', { ascending: false });
   if (!isAdmin) query = query.eq('user_id', currentUser.id);
   else if (userId) query = query.eq('user_id', userId);
-
   if (projectId) query = query.eq('project_id', projectId);
   if (type) query = query.eq('type', type);
   if (start) query = query.gte('date', start);
   if (end) query = query.lte('date', end);
-
   query.then(function(res) {
     if (res.error) return showMsg('sumMsg', '查询失败：' + res.error.message, 'error');
     summaryData = res.data || [];
@@ -447,9 +366,16 @@ function showMsg(id, text, type) {
   el.className = 'msg ' + type;
   setTimeout(function() { el.className = 'msg'; }, 5000);
 }
+
 function escapeHtml(s) {
   if (!s) return '';
   return String(s).replace(/[&<>"']/g, function(c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
 }
 
 init();
+
+// 页面加载后，主动请求一次推送权限
+window.OneSignalDeferred = window.OneSignalDeferred || [];
+window.OneSignalDeferred.push(function(OneSignal) {
+    OneSignal.Notifications.requestPermission();
+});
