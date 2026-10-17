@@ -1,6 +1,6 @@
 // ====== 换成你自己的 Supabase 信息 ======
 var SUPABASE_URL = 'https://cjbpatgijzmkrakaujhz.supabase.co';
-var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqYnBhdGdpanpta3Jha2F1amh6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE5NTc2NDcsImV4cCI6MjEwNzUzMzY0N30.lQUiwDeRbwpX7OJ2ixgxK4Qd8krJ7KkampSvIGn9JLg';
+var SUPABASE_KEY = 'sb_publishable_NObsvMrfusGQnq8wSbX-zg_4GfJXZRH';
 // ======================================
 
 var db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
