@@ -1,5 +1,5 @@
 // ====== 换成你自己的 Supabase 信息 ======
-var SUPABASE_URL = 'https://cjbpagijzmkraukaujhz.supabase.co';
+var SUPABASE_URL = 'https://cjbpatgijzmkrakaujhz.supabase.co';
 var SUPABASE_KEY = 'sb_publishable_NObsvMrfusGQnq8wSbX-zg_4GfJXZRH';
 // ======================================
 
